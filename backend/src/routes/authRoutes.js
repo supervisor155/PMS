@@ -29,6 +29,7 @@ const router = Router();
 
 // Public
 router.post("/login", login);
+router.post("/register", register);   // open signup — new users get 'staff' role by default
 router.post("/reset-password", resetPassword);
 
 // Authenticated

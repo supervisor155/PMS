@@ -13,22 +13,26 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import pool from "../config/db.js";
 
-// Admin creates a new user account (staff or another admin)
+// Public signup — role is always 'staff' when self-registering.
+// Only an already-logged-in admin can promote someone via UsersPage.
 export const register = async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ message: "Username and password required." });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters." });
   }
   try {
     const hashed = await bcrypt.hash(password, 10);
     await pool.query(
-      "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-      [username, hashed, role || "staff"]
+      "INSERT INTO users (username, password, role) VALUES (?, ?, 'staff')",
+      [username, hashed]
     );
-    res.status(201).json({ message: "User created successfully." });
+    res.status(201).json({ message: "Account created. You can now log in." });
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Username already exists." });
+      return res.status(409).json({ message: "Username already taken." });
     }
     res.status(500).json({ message: "Server error.", error: err.message });
   }

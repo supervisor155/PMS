@@ -114,10 +114,19 @@ export default function LoginPage() {
   // Animation stage: 'idle' | 'animating' | 'open'
   const [stage, setStage]     = useState("idle");
 
+  // card view: 'login' | 'register' | 'forgot-step1' | 'forgot-step2'
+  const [view, setView]       = useState("login");
+
   // Login form
   const [form, setForm]       = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+
+  // Register form
+  const [regForm, setRegForm]     = useState({ username: "", password: "", confirm: "" });
+  const [regErrors, setRegErrors] = useState({});
+  const [regLoading, setRegLoading] = useState(false);
+  const [regShowPass, setRegShowPass] = useState(false);
 
   // Forgot password view: 'none' | 'step1' | 'step2'
   // step1 = enter username + instructions
@@ -199,8 +208,93 @@ export default function LoginPage() {
     setFpUsername(""); setFpToken(""); setFpPassword("");
   };
 
+  // Register handler
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    const errs = {};
+    if (!regForm.username)                        errs.username = "Required";
+    if (!regForm.password || regForm.password.length < 6) errs.password = "Min 6 characters";
+    if (regForm.password !== regForm.confirm)     errs.confirm  = "Passwords do not match";
+    setRegErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    setRegLoading(true);
+    try {
+      await api.post("/auth/register", { username: regForm.username, password: regForm.password });
+      toast("Account created! You can now sign in.", "success");
+      setForm((p) => ({ ...p, username: regForm.username }));
+      setRegForm({ username: "", password: "", confirm: "" });
+      setView("login");
+    } catch (err) {
+      toast(err.response?.data?.message || "Registration failed.", "error");
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
   // ── What to render inside the white card ─────────────────────────────────
   const renderCard = () => {
+    // ── Register ──
+    if (view === "register") {
+      return (
+        <div className="form-in">
+          <button onClick={() => setView("login")} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-4">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            Back to login
+          </button>
+          <h2 className="text-base font-bold text-gray-800 mb-1">Create Account</h2>
+          <p className="text-gray-400 text-sm mb-5">You'll be registered as <span className="font-medium text-gray-600">staff</span></p>
+          <form onSubmit={handleRegister} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Username</label>
+              <input
+                className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${regErrors.username ? "border-red-400" : "border-gray-200"}`}
+                placeholder="Choose a username"
+                value={regForm.username}
+                onChange={(e) => { setRegForm((p) => ({ ...p, username: e.target.value })); setRegErrors((p) => ({ ...p, username: "" })); }}
+                autoFocus
+              />
+              {regErrors.username && <p className="text-red-500 text-xs mt-0.5">{regErrors.username}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
+              <div className="relative">
+                <input
+                  type={regShowPass ? "text" : "password"}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 ${regErrors.password ? "border-red-400" : "border-gray-200"}`}
+                  placeholder="Min 6 characters"
+                  value={regForm.password}
+                  onChange={(e) => { setRegForm((p) => ({ ...p, password: e.target.value })); setRegErrors((p) => ({ ...p, password: "" })); }}
+                />
+                <button type="button" onClick={() => setRegShowPass(!regShowPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <EyeIcon show={regShowPass} />
+                </button>
+              </div>
+              <StrengthBar password={regForm.password} />
+              {regErrors.password && <p className="text-red-500 text-xs mt-0.5">{regErrors.password}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Confirm Password</label>
+              <input
+                type="password"
+                className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${regErrors.confirm ? "border-red-400" : "border-gray-200"}`}
+                placeholder="Repeat password"
+                value={regForm.confirm}
+                onChange={(e) => { setRegForm((p) => ({ ...p, confirm: e.target.value })); setRegErrors((p) => ({ ...p, confirm: "" })); }}
+              />
+              {regErrors.confirm && <p className="text-red-500 text-xs mt-0.5">{regErrors.confirm}</p>}
+            </div>
+            <button
+              type="submit"
+              disabled={regLoading}
+              className="w-full bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-60 transition-colors mt-1"
+            >
+              {regLoading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+        </div>
+      );
+    }
+
     // ── Forgot step 1: username + instructions ──
     if (forgot === "step1") {
       return (
@@ -357,8 +451,21 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <div className="flex items-center gap-2 my-4">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <button
+          onClick={() => { setView("register"); setRegErrors({}); setRegForm({ username: "", password: "", confirm: "" }); }}
+          className="w-full border border-blue-200 text-blue-700 py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-sm"
+        >
+          Create Account
+        </button>
+
         <p className="text-center text-xs text-gray-400 mt-4">
-          Contact your administrator to create an account.
+          New accounts are registered as <span className="font-medium">staff</span>.
         </p>
       </>
     );
