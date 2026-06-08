@@ -112,7 +112,7 @@ export default function UsersPage() {
     e.preventDefault();
     if (!validate()) return;
     try {
-      await api.post("/auth/register", form);
+      await api.post("/auth/users", form);  // admin endpoint — allows setting any role
       setModal(false); setForm(EMPTY); refetch();
       toast("User account created.", "success");
     } catch (err) {
